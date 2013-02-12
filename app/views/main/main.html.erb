@@ -4,7 +4,7 @@ hi magz
 wtffff
 
 <script>
-	console.log("wtf");
+	console.log("loading orgchart javascript");
 	var activeOrgChart;
 	function OrgChart(name, id, rootEmployeeName, rootEmployeeJob, rootEmployeeId) {
 		this.name = name;
@@ -25,6 +25,21 @@ wtffff
 			this.rootNode.prettyDisplay();
 		}
 
+	}
+	OrgChart.loadIndex = function(){
+		$.ajax({
+			  url: 'org_charts.json',
+			  type: 'GET',
+			  data: {},
+			  success: function(data) {
+			  	console.log("here is a list of all org charts");
+			  	data["org_charts"].map(function(chart){
+			  		console.log(chart["name"] +" : " + chart["id"]);
+			  	})
+			  	console.log("they can be loaded via OrgChart.loadOrgChart(id)");
+			  	console.log("they will initialize to the activeOrgChart variable")
+			  }
+		});
 	}
 	OrgChart.loadOrgChart = function(id){
 		$.ajax({
@@ -202,9 +217,10 @@ wtffff
 			  data: {"targetNodeId":targetNode.id,
 										"newParentId":newParent.id},
 			  success: function(data) {
-			  	if(data["status"]=="ok"){}
+			  	if(data["status"]=="ok"){
 				  	console.log("Node" + targetNode.id + " was successfully moved");
 				  	OrgChart.loadOrgChart(activeOrgChart.id);
+				}
 				else{
 					console.log("node not moved");
 					console.log(data["status"]);

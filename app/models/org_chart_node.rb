@@ -11,17 +11,17 @@ class OrgChartNode < ActiveRecord::Base
 		(self.children + self.children.map {|x| x.get_all_children}).flatten
 	end
 
-	def self.magz
-		OrgChartNode.find_by_employee_name "magz"
-	end
-	def self.casey
-		OrgChartNode.find_by_employee_name "casey"
-	end
-	def self.cav
-		OrgChartNode.find_by_employee_name "cav"
-	end
-	def self.lauren
-		OrgChartNode.find_by_employee_name "lauren"
-	end
+	# def self.magz
+	# 	OrgChartNode.find_by_employee_name "magz"
+	# end
+	# def self.casey
+	# 	OrgChartNode.find_by_employee_name "casey"
+	# end
+	# def self.cav
+	# 	OrgChartNode.find_by_employee_name "cav"
+	# end
+	# def self.lauren
+	# 	OrgChartNode.find_by_employee_name "lauren"
+	# end
 
 end
