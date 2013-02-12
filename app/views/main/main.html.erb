@@ -1,0 +1,232 @@
+hi magz
+
+
+wtffff
+
+<script>
+	console.log("wtf");
+	var activeOrgChart;
+	function OrgChart(name, id, rootEmployeeName, rootEmployeeJob, rootEmployeeId) {
+		this.name = name;
+		this.rootNode = new OrgChartNode(rootEmployeeName,rootEmployeeJob, rootEmployeeId) 
+		this.rootNode.tree = this;
+		this.id = id;
+
+		this.getAllNodes = function() {
+			return [this.rootNode].concat(this.rootNode.getAllChildren());
+		}
+		this.orderedTree = function(order_method){
+			return this.rootNode.orderedTree(order_method);
+		}
+		this.displayTree = function(){
+			return this.rootNode.displayTree();
+		}
+		this.prettyDisplay = function(){
+			this.rootNode.prettyDisplay();
+		}
+
+	}
+	OrgChart.loadOrgChart = function(id){
+		$.ajax({
+			  url: 'org_charts/'+id+'.json',
+			  type: 'GET',
+			  data: {},
+			  success: function(data) {
+		 		OrgChartNode.clearNodes();
+		 		activeOrgChart = new OrgChart(data["org_chart"]["name"], 
+		  							data["org_chart"]["id"], 
+		  							data["nodes"][0]["employee_name"],
+		  							data["nodes"][0]["employee_job"],
+		  							data["nodes"][0]["id"]);
+				var parentNode = activeOrgChart.rootNode;
+				for(i=1;i<data["nodes"].length; i++){
+					console.log(data["nodes"][i]);
+					if(data["nodes"][i]["parent_node_id"] != parentNode.id){
+						console.log("finding new parent with id " + data["nodes"][i]["parent_node_id"]);
+						parentNode = OrgChartNode.find_by_attribute("id", data["nodes"][i]["parent_node_id"]);
+						console.log("found");
+					}
+					parentNode.addChild(data["nodes"][i]["employee_name"], 
+										data["nodes"][i]["employee_job"], 
+										data["nodes"][i]["id"])
+					console.log(activeOrgChart.getAllNodes().length);
+				}
+				
+
+			}
+		});
+
+	}
+	OrgChart.createOrgChart = function(name, rootEmployeeName, rootEmployeeJob){
+		var returnValue = $.ajax({
+			  url: 'org_charts.json',
+			  type: 'POST',
+			  data: {"orgChart": {"name":name}, 
+			  		"rootNode":{"employeeName":rootEmployeeName, "employeeJob":rootEmployeeJob}},
+			  success: function(data) {
+			  	activeOrgChart = new OrgChartNode(data["org_chart"]["name"], 
+			  							data["org_chart"]["id"], 
+			  							data["root_node"]["employee_name"],
+			  							data["root_node"]["employee_job"],
+			  							data["root_node"]["id"]);
+
+
+			  },
+			  error: function(data){
+			  	console.log("Error creating Org Chart, activeOrgChart not set");
+			  }
+		});
+	}
+	function OrgChartNode(employeeName, employeeJob, id, parentNode) {
+		this.employeeName = employeeName;
+		this.employeeJob = employeeJob;
+		this.children = []; 
+		this.parentNode = parentNode;
+		if(this.parentNode != null) {
+			this.parentNode.children.push(this);
+		}
+		this.id = id;
+		if(OrgChartNode.allNodes == undefined){
+			OrgChartNode.allNodes = []
+		}
+		OrgChartNode.allNodes.push(this);
+
+		this.updateAttributes = function(EmployeeName, EmployeeJob){
+			$.ajax({
+				  url: 'org_chart_nodes/'+this.id+'.json',
+				  type: 'PUT',
+				  data: {"node":{"id":this.id,
+				  				"employeeName":EmployeeName, 
+				  				"employeeJob":EmployeeJob
+				  				}
+				  		},
+				  success: function(data) {
+				  	console.log("Successfully updated node "+ this.id);
+			  		OrgChart.loadOrgChart(activeOrgChart.id);
+
+				  }
+			});
+
+
+		}
+		this.getOwnChildren = function(){
+			return this.children;
+		}
+		// returns all children of the node in a flattened array
+		this.getAllChildren = function(){
+			var allChildren = [];
+			var queue = this.getOwnChildren().map(function(x){return x});
+			while(queue.length != 0){
+				var child = queue.pop();
+				allChildren.push(child);
+				child.getOwnChildren().map(function(x){queue.push(x)});
+			}
+			return allChildren;
+		}
+		this.addChild = function(employeeName, employeeJob, id) {
+			var childNode = new OrgChartNode(employeeName, employeeJob, id, this)
+		}
+		this.orderedTree = function(order_method) {
+
+			return [this].concat(this.getAllChildren()).sort(function(a,b){
+				if(a[order_method] > b[order_method])
+					return 1
+				else if(a[order_method] < b[order_method])
+					return -1
+				else
+					return 0
+			})
+
+
+		}
+		this.displayTree = function(){
+			return {"employeeName": this.employeeName,
+			"employeeJob": this.employeeJob,
+			"id":this.id,
+			"children":this.children.map(function(child){return child.displayTree()})}
+		}	
+
+		this.prettyDisplay = function(){
+			console.log(JSON.stringify(this.displayTree()));
+		}
+
+	}
+		OrgChartNode.where_attribute= function(attribute, parameter) {
+			if(OrgChartNode.allNodes == undefined)
+				return null
+			else
+				return OrgChartNode.allNodes.filter(function(x){return x[attribute] == parameter})
+		}
+		OrgChartNode.find_by_attribute = function(attribute, parameter) {
+			if(OrgChartNode.allNodes == undefined)
+				return null
+			else
+				return OrgChartNode.allNodes.filter(function(x){return x[attribute] == parameter})[0]
+		}
+		OrgChartNode.createNode =  function(employeeName, employeeJob, parentNode){
+			
+			$.ajax({
+			  url: 'org_chart_nodes.json',
+			  type: 'POST',
+			  data: {"org_chart_node": {"employeeName":employeeName,
+										"employeeJob":employeeJob,
+										"parentNodeId":parentNode.id}},
+			  success: function(data) {
+			  	console.log("Node was successfully created");
+			  	parentNode.addChild(data["org_chart_node"]["employee_name"],
+			  						data["org_chart_node"]["employee_job"],
+			  						data["org_chart_node"]["id"]);
+			  }
+			});
+
+		}
+		OrgChartNode.deleteNode =  function(targetNode){
+
+			$.ajax({
+			  url: 'org_chart_nodes/' + targetNode.id + '.json',
+			  type: 'DELETE',
+			  data: {"org_chart_node": {"targetNodeId":targetNode.id,
+										"parentNodeId":targetNode.parentNode.id}},
+			  success: function(data) {
+			  	console.log("Node" + targetNode.id + " was successfully deleted");
+			  	OrgChart.loadOrgChart(activeOrgChart.id);
+			  }
+			});
+
+		}
+		OrgChartNode.moveNode =  function(targetNode, newParent){
+
+			$.ajax({
+			  url: 'org_chart_nodes/move_node.json',
+			  type: 'POST',
+			  data: {"targetNodeId":targetNode.id,
+										"newParentId":newParent.id},
+			  success: function(data) {
+			  	if(data["status"]=="ok"){}
+				  	console.log("Node" + targetNode.id + " was successfully moved");
+				  	OrgChart.loadOrgChart(activeOrgChart.id);
+				else{
+					console.log("node not moved");
+					console.log(data["status"]);
+				}
+			  }
+			});
+
+		}
+
+		OrgChartNode.clearNodes = function(){
+			if(OrgChartNode.allNodes != undefined){
+				OrgChartNode.allNodes.map(function(x){x=null});
+			}
+			OrgChartNode.allNodes = [];
+		}
+
+
+
+
+
+
+
+
+
+</script>
